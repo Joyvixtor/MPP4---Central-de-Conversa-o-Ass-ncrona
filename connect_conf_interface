@@ -1,0 +1,14 @@
+from tkinter import *
+
+root = Tk()
+
+root.title('Connect config')
+
+ip_dest_label = Label(root, text='IP de destino').grid(row=0, sticky=W)
+port_dest_label = Label(root, text='Porta de destino').grid(row=1, sticky=W)
+
+ip_dest_entry = Entry(root).grid(row=0, column=1)
+port_dest_entry = Entry(root).grid(row=1, column=1)
+
+btn = Button(root, text='connect').grid(row=2, column=1, sticky=E)
+root.mainloop()
