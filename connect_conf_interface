@@ -46,7 +46,7 @@ class GUI:
         texto = self.input.get() + '\n'
         self.chat.insert(END, texto)
         self.input.delete(0, END)
-        self.show_date() # chama a função para exibir a hora
+        self.show_date() # chama a função para exibir a hora.
 
     def show_date(self):
         """Função para exibir a hora na área de informações"""
