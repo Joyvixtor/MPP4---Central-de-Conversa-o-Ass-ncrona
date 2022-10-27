@@ -43,8 +43,8 @@ class GUI:
     
     def send(self, event = None):
         """Função para enviar mensagem"""
-        texto = self.input.get() + '\n'
-        self.chat.insert(END, texto)
+        self.texto = self.input.get() + '\n'
+        self.chat.insert(END, self.texto)
         self.input.delete(0, END)
         self.show_date() # chama a função para exibir a hora.
 
@@ -52,12 +52,13 @@ class GUI:
         """Função para exibir a hora na área de informações"""
         now = datetime.now()
         date_string = now.strftime("%H:%M:%S")
-        textoHora = 'Mensagem recebida às: ' + date_string + '\n'
-        self.infos_area.insert(END,textoHora)
+        if self.texto != '\n':
+            textoHora = 'Mensagem recebida às: ' + date_string + '\n'
+            self.infos_area.insert(END,textoHora)
  
     
     def clear(self):
-        """Limpa a área de mensagens"""
+        """Limpa a área de mensagens e de exibição"""
         self.chat.delete("1.0",END)
         self.infos_area.delete("1.0",END)
 
