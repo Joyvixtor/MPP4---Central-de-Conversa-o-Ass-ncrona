@@ -1,0 +1,14 @@
+from tkinter import *
+
+root = Tk()
+root.title('pasgzap')
+
+
+chat = Text(root, font='Arial 10', width=60, height=14).grid(row=0, column=0, columnspan=2)
+inpt = Entry(root, width=60, font='Arial 10').grid(row=1, column=0, sticky=W, columnspan=3)
+
+btn_send = Button(root, text='send', command=enviar).grid(row=1, column=3)
+btn_get_file = Button(root, text='get file').grid(row=1, column=4)
+
+
+root.mainloop()
