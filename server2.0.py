@@ -49,7 +49,7 @@ class GUI:
         self.msg_area_label = Label(self.root, text='Area de mensagens') 
         self.infos_area_label = Label(self.root, text='Area de informações')
 
-        self.infos_area = Text(self.root, font='Arial 10', width=40, height=14)
+        self.infos_area = Text(self.root, font='Arial 9', width=60, height=14)
         self.chat = Text(self.root, font='Arial 10', width=60, height=14)
 
         self.input = Entry(self.root, width=60, font='Arial 10')
@@ -72,12 +72,12 @@ class GUI:
     def sending(self, event = None):
         """Método para envio de mensagens"""
         if self.successfulConection:
-            msg_user_encode = self.name.encode('utf-8')
+            msg_user_encode = self.name.encode('utf-8') # como a conexão foi bem sucedida, ele vai enviar seu user para o outro lado.
             self.socket.send(msg_user_encode)
             while True:
                 self.Event.wait() # se o Evento tiver True -> prossegue para a linha 77 adiante
                 self.texto = self.input.get() + '\n'
-                sendTime = self.show_date() + '\n'
+                sendTime = self.show_date()
                 self.input.delete(0,END)
                 msg_array = [self.texto,sendTime,self.name]
                 msg_data = pickle.dumps(msg_array)
@@ -92,14 +92,15 @@ class GUI:
     def receiving(self):
         """Método para recebimento de mensagem"""
         if self.successfulConection:
-            self.UserOtherSide = self.socket.recv(2048).decode('utf-8')
+            self.UserOtherSide = self.socket.recv(2048).decode('utf-8') # assim que se conecta, ele vai receber o user do outro lado
             print(self.UserOtherSide)
             while True:
                 self.receive_msg = pickle.loads(self.socket.recv(2048))
                 self.content = list(self.receive_msg)
                 if self.content[0] != '\n':
                     self.chat.insert(END,self.content[0])
-                    self.infos_area.insert(END,self.content[1])
+                    self.infos_msg = '({}): enviada às {} / recebida às {} \n'.format(self.UserOtherSide,self.content[1],self.show_date())
+                    self.infos_area.insert(END,self.infos_msg)
     
     def show_date(self):
         """Função para exibir a hora na área de informações"""
