@@ -1,5 +1,9 @@
 from tkinter import *
+from threading import Thread
+from socket import *
+from datetime import datetime
 
+#it creates the chat interface itself
 class GUI:
     def __init__(self, name, ip_dest, port_dest):
         self.name = name
@@ -17,7 +21,7 @@ class GUI:
         self.infos_area_label = Label(self.root, text='Area de informações') 
         self.infos_area = Text(self.root, font='Arial 10', width=40, height=14)
         self.chat = Text(self.root, font='Arial 10', width=60, height=14)
-        self.inpt = Entry(self.root, width=60, font='Arial 10')
+        self.inpt_msg = Entry(self.root, width=60, font='Arial 10') #message variable
         self.btn_clear = Button(self.root, text='Limpar mensagens')
         self.btn_send = Button(self.root, text='send')
         self.btn_get_file = Button(self.root, text='get file')
@@ -29,10 +33,17 @@ class GUI:
         self.inpt.grid(row=2, column=0, sticky=W, columnspan=3)
         self.btn_clear.grid(row=2, column=5)
         self.btn_send.grid(row=2, column=3, columnspan=1)
-        self.btn_get_file.grid(row=2, column=4)        
+        self.btn_get_file.grid(row=2, column=4)    
+
+    def socket_server(self): #connect the client with the server
+        self.client_info = socket(AF_INET, SOCK_STREAM)
+        self.client_info.connect(('localhost', 60200))
+        return self.client_info    
+    
+    def send(self, event = NONE): #sending messages
+        msg = self.inpt_msg.get() #it gets the message sent by the user
         
-
-
+#it creates an interface that gets IP and port data
 class connector():
     def __init__(self) -> None:
         self.root = Tk()
@@ -55,7 +66,7 @@ class connector():
         self.btn.grid(row=3, column=1, sticky=E)
         self.root.mainloop()
 
-
+    #when we press connect button
     def conectar(self):
         global user_name, ip_dest, port_dest
         user_name = self.user_name_entry.get()
