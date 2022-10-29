@@ -72,12 +72,14 @@ class GUI:
     def sending(self, event = None):
         """Método para envio de mensagens"""
         if self.successfulConection:
+            msg_user_encode = self.name.encode('utf-8')
+            self.socket.send(msg_user_encode)
             while True:
                 self.Event.wait() # se o Evento tiver True -> prossegue para a linha 77 adiante
                 self.texto = self.input.get() + '\n'
                 sendTime = self.show_date() + '\n'
                 self.input.delete(0,END)
-                msg_array = [self.texto,sendTime]
+                msg_array = [self.texto,sendTime,self.name]
                 msg_data = pickle.dumps(msg_array)
                 self.socket.send(msg_data)
                 self.Event.clear() # após envio da mensagem, o Evento volta a ser Falso, já que não tem nenhuma mensagem mais para enviar.
@@ -90,6 +92,8 @@ class GUI:
     def receiving(self):
         """Método para recebimento de mensagem"""
         if self.successfulConection:
+            self.UserOtherSide = self.socket.recv(2048).decode('utf-8')
+            print(self.UserOtherSide)
             while True:
                 self.receive_msg = pickle.loads(self.socket.recv(2048))
                 self.content = list(self.receive_msg)

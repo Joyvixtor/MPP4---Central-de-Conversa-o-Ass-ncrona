@@ -10,15 +10,16 @@ class GUI:
         self.name = str(name)
         self.ip_dest = ip_dest
         self.port_dest= port_dest
-        self.successfulConection = sucessFulconnection
-        self.Event = threading.Event()
+        self.successfulConection = sucessFulconnection # booleano para conferir se a conexão já foi feita
+        self.Event = threading.Event() # evento para, toda vez que der Enter ou Send, a mensagem enviar
         self.design_root()
         self.creating_socket()
         self.root.mainloop()
         
     def creating_socket (self):
-        self.portInt = int(port_dest)
-        self.successfulConection = True
+        """Criação de sockets e estabelecimento de conexão"""
+        self.portInt = int(port_dest) # porta para inteiro, é recebida em string
+        self.successfulConection = True # a conexão já vai ser estabelecida de alguma forma pelo try except, então muda para True
         try:
             self.socket = socket(AF_INET, SOCK_STREAM)
             self.socket.connect(('localhost',self.portInt))
@@ -28,7 +29,10 @@ class GUI:
             self.socket.listen(1)
             chat, addr = self.socket.accept()
             self.socket = chat
-
+        
+        '''
+            Início das threads de recebimento e envio de mensagens
+        '''
         self.receber_msg = threading.Thread(target=self.receiving)
         self.receber_msg.start()
         self.enviar_msg = threading.Thread(target=self.sending)
@@ -66,22 +70,30 @@ class GUI:
         self.btn_get_file.grid(row=2, column=4)      
     
     def sending(self, event = None):
+        """Método para envio de mensagens"""
         if self.successfulConection:
+            msg_user_encode = self.name.encode('utf-8')
+            self.socket.send(msg_user_encode)
             while True:
-                self.Event.wait()
+                self.Event.wait() # se o Evento tiver True -> prossegue para a linha 77 adiante
                 self.texto = self.input.get() + '\n'
                 sendTime = self.show_date() + '\n'
                 self.input.delete(0,END)
-                msg_array = [self.texto,sendTime]
+                msg_array = [self.texto,sendTime,self.name]
                 msg_data = pickle.dumps(msg_array)
                 self.socket.send(msg_data)
-                self.Event.clear()
+                self.Event.clear() # após envio da mensagem, o Evento volta a ser Falso, já que não tem nenhuma mensagem mais para enviar.
 
     def check_press(self, event = None):
+        """Método para setar o Evento para True."""
         self.Event.set()
-          
+        # Toda vez que o Enter ou Send for pressionado, o evento vai ser setado para verdadeiro, e aí então a thread do envio passa da linha 77 e envia a mensagem.
+                    
     def receiving(self):
+        """Método para recebimento de mensagem"""
         if self.successfulConection:
+            self.UserOtherSide = self.socket.recv(2048).decode('utf-8')
+            print(self.UserOtherSide)
             while True:
                 self.receive_msg = pickle.loads(self.socket.recv(2048))
                 self.content = list(self.receive_msg)
