@@ -3,6 +3,10 @@ import threading
 from datetime import datetime
 from socket import *
 import pickle
+from tkinter import filedialog
+from PIL import Image, ImageTk
+import os
+from sys import argv, stdout
 
 class GUI:
     def __init__(self, name, ip_dest, port_dest, sucessFulconnection = False):
@@ -11,24 +15,28 @@ class GUI:
         self.ip_dest = ip_dest
         self.port_dest= port_dest
         self.successfulConection = sucessFulconnection # booleano para conferir se a conexão já foi feita
-        self.Event = threading.Event() # evento para, toda vez que der Enter ou Send, a mensagem enviar
+        self.EventMsg = threading.Event() # evento para, toda vez que der Enter ou Send, a mensagem enviar
+        self.EventFile = threading.Event()
         self.design_root()
-        self.creating_socket()
+        self.creating_sockets()
         self.root.mainloop()
         
-    def creating_socket (self):
+    def creating_sockets (self):
         """Criação de sockets e estabelecimento de conexão"""
         self.portInt = int(port_dest) # porta para inteiro, é recebida em string
         self.successfulConection = True # a conexão já vai ser estabelecida de alguma forma pelo try except, então muda para True
         try:
-            self.socket = socket(AF_INET, SOCK_STREAM)
-            self.socket.connect(('localhost',self.portInt))
+            self.socketMsg = socket(AF_INET, SOCK_STREAM)
+            self.socketFile = socket(AF_INET,SOCK_DGRAM)
+            self.socketMsg.connect(('localhost',self.portInt))
         except:
-            self.socket = socket(AF_INET, SOCK_STREAM)
-            self.socket.bind(('localhost',self.portInt))
-            self.socket.listen(1)
-            chat, addr = self.socket.accept()
-            self.socket = chat
+            self.socketMsg = socket(AF_INET, SOCK_STREAM)
+            self.socketFile = socket(AF_INET,SOCK_DGRAM)
+            self.socketMsg.bind(('localhost',self.portInt))
+            self.socketMsg.listen(1)
+            chat, addr = self.socketMsg.accept()
+            self.socketMsg = chat
+            self.socketFile.bind(('localhost',self.portInt)) # dois sockets, contanto que sejam de protocolos diferentes, podem escutar numa mesma porta. Por isso, o socket TCP e UDP tão na mesma porta especificada.
         
         '''
             Início das threads de recebimento e envio de mensagens
@@ -49,7 +57,7 @@ class GUI:
         self.msg_area_label = Label(self.root, text='Area de mensagens') 
         self.infos_area_label = Label(self.root, text='Area de informações')
 
-        self.infos_area = Text(self.root, font='Arial 9', width=60, height=14)
+        self.infos_area = Text(self.root, font='Arial 10', width=60, height=14)
         self.chat = Text(self.root, font='Arial 10', width=60, height=14)
 
         self.input = Entry(self.root, width=60, font='Arial 10')
@@ -58,7 +66,7 @@ class GUI:
         self.btn_send = Button(self.root, text='Send', padx = 40, command=self.check_press)
         self.root.bind("<Return>", self.check_press) # configura o enter para enviar mensagem
 
-        self.btn_get_file = Button(self.root, text='Get file', padx = 40)
+        self.btn_get_file = Button(self.root, text='Get file', padx = 40, command= self.getFile)
        
         self.msg_area_label.grid(row=0, columnspan=3)
         self.infos_area_label.grid(row=0, columnspan=3, column=3)
@@ -73,29 +81,29 @@ class GUI:
         """Método para envio de mensagens"""
         if self.successfulConection:
             msg_user_encode = self.name.encode('utf-8') # como a conexão foi bem sucedida, ele vai enviar seu user para o outro lado.
-            self.socket.send(msg_user_encode)
+            self.socketMsg.send(msg_user_encode)
             while True:
-                self.Event.wait() # se o Evento tiver True -> prossegue para a linha 77 adiante
+                self.EventMsg.wait() # se o Evento tiver True -> prossegue para a linha 77 adiante
                 self.texto = self.input.get() + '\n'
                 sendTime = self.show_date()
                 self.input.delete(0,END)
                 msg_array = [self.texto,sendTime,self.name]
                 msg_data = pickle.dumps(msg_array)
-                self.socket.send(msg_data)
-                self.Event.clear() # após envio da mensagem, o Evento volta a ser Falso, já que não tem nenhuma mensagem mais para enviar.
+                self.socketMsg.send(msg_data)
+                self.EventMsg.clear() # após envio da mensagem, o Evento volta a ser Falso, já que não tem nenhuma mensagem mais para enviar.
 
     def check_press(self, event = None):
         """Método para setar o Evento para True."""
-        self.Event.set()
+        self.EventMsg.set()
         # Toda vez que o Enter ou Send for pressionado, o evento vai ser setado para verdadeiro, e aí então a thread do envio passa da linha 77 e envia a mensagem.
                     
     def receiving(self):
         """Método para recebimento de mensagem"""
         if self.successfulConection:
-            self.UserOtherSide = self.socket.recv(2048).decode('utf-8') # assim que se conecta, ele vai receber o user do outro lado
+            self.UserOtherSide = self.socketMsg.recv(2048).decode('utf-8') # assim que se conecta, ele vai receber o user do outro lado
             print(self.UserOtherSide)
             while True:
-                self.receive_msg = pickle.loads(self.socket.recv(2048))
+                self.receive_msg = pickle.loads(self.socketMsg.recv(2048))
                 self.content = list(self.receive_msg)
                 if self.content[0] != '\n':
                     self.chat.insert(END,self.content[0])
@@ -107,7 +115,30 @@ class GUI:
         now = datetime.now()
         date_string = now.strftime("%H:%M:%S")
         return date_string
- 
+
+    def getFile(self):
+        path = filedialog.askopenfilename()
+        if path == '':
+            return
+        file_format = path.split('.')[-1]
+        if file_format in ['mp3', 'wav', 'ogg']:
+            self.chat.insert(END, f"$AUDIO: {path.split('/')[-1]}\n\n")
+        elif file_format in ['mp4', 'MOV']:
+            self.chat.insert(END, f"$VIDEO: {path.split('/')[-1]}\n\n")
+        else:
+            try:
+                img = Image.open(path)
+
+                miniature_img = img.resize((500,500))
+                self.my_img = ImageTk.PhotoImage(miniature_img)  
+                self.chat.image_create(END, image=self.my_img)
+                self.chat.insert(END, "\n\n")
+            except:
+                self.chat.insert(END, f"$FILE: {path.split('/')[-1]}\n\n")
+        
+        self.chat.insert(END,'começando o envio! \n')
+        # cenas do proximo capítulo, falta implementar o rdt 
+
     def clear(self):
         """Limpa a área de mensagens e de exibição"""
         self.chat.delete("1.0",END)
