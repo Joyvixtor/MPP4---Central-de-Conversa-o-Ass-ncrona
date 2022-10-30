@@ -5,8 +5,8 @@ from socket import *
 import pickle
 from tkinter import filedialog
 from PIL import Image, ImageTk
-import os
-from sys import argv, stdout
+import time
+import funcoes
 
 class GUI:
     def __init__(self, name, ip_dest, port_dest, sucessFulconnection = False):
@@ -16,7 +16,10 @@ class GUI:
         self.port_dest= port_dest
         self.successfulConection = sucessFulconnection # booleano para conferir se a conexão já foi feita
         self.EventMsg = threading.Event() # evento para, toda vez que der Enter ou Send, a mensagem enviar
-        self.EventFile = threading.Event()
+        self.command = '``File_Send_Command_Start``'
+        self.LockFileSend = threading.Lock()
+        self.LockFileRecv = threading.Lock()
+        self.buffer_size = 1024
         self.design_root()
         self.creating_sockets()
         self.root.mainloop()
@@ -41,10 +44,12 @@ class GUI:
         '''
             Início das threads de recebimento e envio de mensagens
         '''
-        self.receber_msg = threading.Thread(target=self.receiving)
+        self.receber_msg = threading.Thread(target=self.receivingMsg)
         self.receber_msg.start()
         self.enviar_msg = threading.Thread(target=self.sending)
         self.enviar_msg.start() 
+        self.receber_file = threading.Thread(target=self.receivingFile)
+        self.receber_file.start() 
             
     def design_root(self):
         """Design da tela"""
@@ -97,7 +102,7 @@ class GUI:
         self.EventMsg.set()
         # Toda vez que o Enter ou Send for pressionado, o evento vai ser setado para verdadeiro, e aí então a thread do envio passa da linha 77 e envia a mensagem.
                     
-    def receiving(self):
+    def receivingMsg(self):
         """Método para recebimento de mensagem"""
         if self.successfulConection:
             self.UserOtherSide = self.socketMsg.recv(2048).decode('utf-8') # assim que se conecta, ele vai receber o user do outro lado
@@ -109,6 +114,43 @@ class GUI:
                     self.chat.insert(END,self.content[0])
                     self.infos_msg = '({}): enviada às {} / recebida às {} \n'.format(self.UserOtherSide,self.content[1],self.show_date())
                     self.infos_area.insert(END,self.infos_msg)
+    
+    def receivingFile(self):
+        if self.successfulConection:
+            while True:
+                try:
+                    self.msg = self.socketFile.recv(2048).decode('utf-8')
+                    if self.msg == self.command:
+                        oncethru = 0
+                        i = 0
+                        self.LockFileRecv.acquire()
+                        file_path = self.socketFile.recv(self.buffer_size).decode('utf-8')
+                        fileReceive = open(file_path, 'wb')
+                        (data,address) = self.socketFile.recvfrom(self.buffer_size)
+                        dataFile = b''
+                        portaorigem = int(data[0:16],2)
+                        portadestino = int(data[16:32],2)
+                        comprimento = int(data[32:48],2)
+                        checksum = int(data[48:64],2)
+                        seq = int(data[64:65],2)
+                        dadoanterior = dado
+                        dado = int(data[65:97],2)
+                        soma = funcoes.checksum(portaorigem, portadestino,comprimento)
+                        while seq == 1 or soma != checksum:
+                            if oncethru == 1:
+                                try:
+                                    self.socketFile.sendto(data,address)
+                                except error as msg:
+                                    print('\nErro: ' + str(msg) + '\n')
+                        if data:
+                            dataFile += data
+                            self.socketFile.sendto('Recebi'.encode('utf-8'), address)
+                        fileReceive.write(dataFile)
+                        fileReceive.close()
+                        self.LockFileRecv.release()
+                except:
+                    pass
+
     
     def show_date(self):
         """Função para exibir a hora na área de informações"""
@@ -136,8 +178,29 @@ class GUI:
             except:
                 self.chat.insert(END, f"$FILE: {path.split('/')[-1]}\n\n")
         
-        self.chat.insert(END,'começando o envio! \n')
-        # cenas do proximo capítulo, falta implementar o rdt 
+        self.send_file = threading.Thread(target= self.sendFile, args= (path,), daemon= True)
+        self.send_file.start()
+
+    def sendFile(self, path: str):
+        self.address = ('localhost', self.portInt)
+        self.socketFile.sendto(self.command.encode('utf-8'), self.address)
+        file_path = path.split('/')[-1]
+        nomeEncode = file_path.encode('utf-8')
+        self.socketFile.sendto(nomeEncode,self.address)
+        fileEnvio = open(path, 'rb')
+        packet = fileEnvio.read(self.buffer_size)
+        
+        self.socketFile.settimeout(1.0)
+        while packet:
+            self.socketFile.sendto(packet,self.address)
+            try:
+                (msgAnswer,address) = self.socketFile.recvfrom(self.buffer_size)
+
+                msgAnswer = msgAnswer.decode('utf-8')
+            except timeout:
+                print('TEMPO ESGOTADO!')
+            packet = fileEnvio.read(self.buffer_size)
+        fileEnvio.close()
 
     def clear(self):
         """Limpa a área de mensagens e de exibição"""
